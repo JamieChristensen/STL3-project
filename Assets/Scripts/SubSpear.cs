@@ -5,7 +5,7 @@ using UnityEngine;
 public class SubSpear : MonoBehaviour
 {
     [SerializeField]
-    private Spear parentSpear; //Assign in inspector for good measure.
+    private SpearNetworked parentSpear; //Assign in inspector for good measure.
 
     public Rigidbody rb;
     

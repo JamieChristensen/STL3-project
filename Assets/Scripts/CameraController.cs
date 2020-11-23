@@ -19,14 +19,29 @@ public class CameraController : MonoBehaviour
 
     private void Awake()
     {
-        Time.fixedDeltaTime = 0.02f*0.33f;
-        if (player == null)
-        {
-            player = FindObjectOfType<PlayerController>();
-        }
+        Time.fixedDeltaTime = 0.02f * 0.33f;
+        
+        FindPlayer();
     }
+
+    //Should be LOCAL player.
+    private void FindPlayer()
+    {
+        player = FindObjectOfType<PlayerController>();
+    }
+
     private void Update()
     {
+        if (player == null)
+        {
+            FindPlayer();
+        }
+        if (player == null)
+        {
+            return;
+        }
+
+
         Vector3 directionToMouse = (player.mousePos - player.transform.position);
         directionToMouse = new Vector3(directionToMouse.x, 0, directionToMouse.z).normalized;
         float lookFactor = Mathf.Min(Vector3.Distance(directionToMouse, player.transform.position), mouseFactor);
