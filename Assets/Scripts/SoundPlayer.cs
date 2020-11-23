@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 
+
 [RequireComponent(typeof(AudioSource))]
 public class SoundPlayer : MonoBehaviour
 {
@@ -8,7 +9,6 @@ public class SoundPlayer : MonoBehaviour
 
 
     public AudioSource audioSource; //Public for access to audio-clip length - for player death effect.
-
 
 
     public void PlaySound()

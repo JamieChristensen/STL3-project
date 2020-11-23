@@ -74,6 +74,8 @@ public class PlayerNetworked : NetworkBehaviour
     [SerializeField]
     private SoundPlayer spearRedirectSoundPlayer;
 
+    [Header("Networking")]
+    private NetworkManager networkManager;
 
     private void Awake()
     {
@@ -81,14 +83,24 @@ public class PlayerNetworked : NetworkBehaviour
         {
             cam = GameObject.FindObjectOfType<Camera>();
         }
+
+
     }
     private void Start()
     {
-
+        if (networkManager == null)
+        {
+            networkManager = FindObjectOfType<NetworkManager>();
+        }
     }
 
     private void Update()
     {
+        if (!hasAuthority)
+        {
+            return;
+        }
+
         horizontalInput = Input.GetAxisRaw("Horizontal");
         verticalInput = Input.GetAxisRaw("Vertical");
         shootInput = Input.GetAxisRaw("Fire1");
@@ -162,11 +174,40 @@ public class PlayerNetworked : NetworkBehaviour
         }
     }
 
-    private void FixedUpdate()
+    [Client]
+    void PlayerMovement()
     {
+        if (!hasAuthority)
+        {
+            return;
+        }
         Vector3 direction = new Vector3(horizontalInput, 0, verticalInput).normalized;
+
+
+        CmdMove(direction);
+    }
+
+    [Command]
+    void CmdMove(Vector3 direction)
+    {
+
+        RpcMove(direction);
+    }
+
+    [ClientRpc]
+    void RpcMove(Vector3 direction)
+    {
         controller.Move(direction * moveSpeed * Time.fixedDeltaTime);
         controller.Move(Vector3.down * controllerGravity * Time.fixedDeltaTime);
+    }
+
+    [Client]
+    void PlayerLookRotationAndRedirectSpear()
+    {
+        if (!hasAuthority)
+        {
+            return;
+        }
 
         Ray ray = cam.ScreenPointToRay(Input.mousePosition);
         RaycastHit hit;
@@ -218,13 +259,34 @@ public class PlayerNetworked : NetworkBehaviour
 
     }
 
+    private void FixedUpdate()
+    {
+        if (!hasAuthority)
+        {
+            return;
+        }
 
+        PlayerMovement();
+
+        PlayerLookRotationAndRedirectSpear();
+    }
+
+    [Client]
     private void ThrowSpear(Vector3 target, float spearSpeed)
     {
         spearThrowSoundPlayer.PlaySound();
-
         spearInHand.SetActive(false);
+
+
+        CmdThrowSpear(target, spearSpeed);
+    }
+
+    [Command]
+    private void CmdThrowSpear(Vector3 target, float spearSpeed)
+    {
         GameObject spearObj = Instantiate(spearPrefab, spearInHand.transform.position, spearInHand.transform.rotation);
+
+
         SpearNetworked spear = spearObj.GetComponentInChildren<SpearNetworked>();
         target = new Vector3(target.x, spearInHand.transform.position.y, target.z);
 
@@ -233,9 +295,12 @@ public class PlayerNetworked : NetworkBehaviour
         mostRecentlyThrownSpear = spear;
         spear.playerController = this;
 
+        NetworkServer.Spawn(spearObj, this.gameObject);
     }
 
-    public void Die()
+
+    //TODO: MAKE THIS A CLIENTRPC FROM SERVER AND MAKE SERVER CALL IT IN SPEARNETWORKED.CS
+    public void Die(Rigidbody rbToParent)
     {
         //Play some sound-effects
         //unparent all transforms/rigidbodies, free up all restrictions on them, apply a minor explosion-force centered a bit below the player.
@@ -257,6 +322,36 @@ public class PlayerNetworked : NetworkBehaviour
         rb.useGravity = true;
 
         StartCoroutine(OnDeath());
+        //rb.AddExplosionForce(10f, transform.position, 4f, 1f, ForceMode.Impulse);
+        //rbToParent.transform.SetParent(transform);
+
+        this.enabled = false;
+    }
+
+public void Die()
+    {
+        //Play some sound-effects
+        //unparent all transforms/rigidbodies, free up all restrictions on them, apply a minor explosion-force centered a bit below the player.
+
+        foreach (Collider coll in collidersToActivateOnDeath)
+        {
+            coll.isTrigger = false;
+            coll.GetComponent<Rigidbody>().isKinematic = false;
+            telegraphingLineRenderer.gameObject.SetActive(false);
+        }
+        transform.DetachChildren();
+
+        if (rb == null)
+        {
+            rb = GetComponent<Rigidbody>();
+        }
+
+        rb.constraints = RigidbodyConstraints.None;
+        rb.useGravity = true;
+
+        StartCoroutine(OnDeath());
+        //rb.AddExplosionForce(10f, transform.position, 4f, 1f, ForceMode.Impulse);
+
         this.enabled = false;
     }
 
@@ -272,6 +367,6 @@ public class PlayerNetworked : NetworkBehaviour
         }
         deathSoundPlayer.PlaySound();
         yield return new WaitForSecondsRealtime(deathSoundPlayer.audioSource.clip.length - 1f);
-        SceneManager.LoadSceneAsync(SceneManager.GetActiveScene().buildIndex, LoadSceneMode.Single);
+        //SceneManager.LoadSceneAsync(SceneManager.GetActiveScene().buildIndex, LoadSceneMode.Single);
     }
 }

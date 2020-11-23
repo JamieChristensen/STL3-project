@@ -1,8 +1,9 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Mirror;
 
-public class SpearNetworked : MonoBehaviour
+public class SpearNetworked : NetworkBehaviour
 {
     public Rigidbody rb;
     private Vector3 previousPosition;
@@ -36,6 +37,13 @@ public class SpearNetworked : MonoBehaviour
 
     public Transform[] childrenOnStart; //Used by "raiseEventOnCollision" for 
 
+    public override void OnStartServer()
+    {
+        base.OnStartServer();
+
+        //Do things necessary for when it starts on server.
+    }
+
     void Start()
     {
         previousPosition = transform.position;
@@ -44,8 +52,10 @@ public class SpearNetworked : MonoBehaviour
         childrenOnStart = transform.GetComponentsInChildren<Transform>();
     }
 
+    [Server]
     void Update()
     {
+
         distanceTravelled += Vector3.Distance(transform.position, previousPosition);
 
         if (rb == null)
@@ -58,8 +68,10 @@ public class SpearNetworked : MonoBehaviour
         }
     }
 
+    [Server]
     void LateUpdate()
     {
+
         previousPosition = transform.position;
         previousRotation = transform.rotation;
         if (rb != null)
@@ -68,6 +80,13 @@ public class SpearNetworked : MonoBehaviour
         }
     }
 
+    [Client]
+    private void PlaySound(SoundPlayer soundPlayer)
+    {
+        soundPlayer.PlaySound();
+    }
+
+    [ServerCallback]
     private void OnCollisionEnter(Collision other)
     {
 
@@ -75,26 +94,37 @@ public class SpearNetworked : MonoBehaviour
         {
             telegraphingSpear.SetActive(false);
         }
-        if (other.transform.CompareTag("DeadEnemy"))
+        if (other.transform.CompareTag("Player"))
         {
             if (!hitEnemy)
             {
-                Destroy(Instantiate(impactBloodParticles, other.GetContact(0).point, Quaternion.identity, other.transform), 5);
-                rb.angularVelocity = Vector3.zero;
-                rb.velocity = Vector3.zero;
-                rb.constraints = RigidbodyConstraints.FreezeAll;
+                GameObject go = Instantiate(impactBloodParticles, other.GetContact(0).point, Quaternion.identity, other.transform);
+                NetworkServer.Spawn(go);
+
+                //rb.angularVelocity = Vector3.zero;
+                //rb.velocity = Vector3.zero;
+                rb.constraints = RigidbodyConstraints.None;
+
+
                 transform.position = previousPosition;
                 transform.rotation = previousRotation;
 
-     
-
-                //rb.isKinematic = true;
 
                 if (playerController.mostRecentlyThrownSpear == this) //To be sure a spear doesn't unspear some other spear.
                 {
                     playerController.mostRecentlyThrownSpear = null;
                 }
-                spearHitEnemySoundPlayer.PlaySound();
+
+            
+                other.transform.GetComponent<PlayerNetworked>().Die();
+                FixedJoint joint = other.gameObject.AddComponent<FixedJoint>();
+                joint.connectedBody = rb;
+                //Anchor stuff if necessary based on collision contacts.
+
+                rb.velocity = previousVelocity;
+                rb.mass = 1f;
+
+                PlaySound(spearHitEnemySoundPlayer);
             }
             hitEnemy = true;
 
@@ -104,7 +134,7 @@ public class SpearNetworked : MonoBehaviour
         if (other.transform.CompareTag("Wall"))
         {
             Destroy(Instantiate(impactParticles, other.GetContact(0).point, Quaternion.identity), 5);
-            
+
 
             rb.velocity = Vector3.zero;
 
@@ -135,7 +165,7 @@ public class SpearNetworked : MonoBehaviour
             spearHitWallSoundPlayer.PlaySound();
         }
 
-
+        /*
         if (other.transform.CompareTag("Enemy"))
         {
             if (hitEnemy == false)
@@ -168,15 +198,11 @@ public class SpearNetworked : MonoBehaviour
                 playerController.mostRecentlyThrownSpear = null;
             }
         }
-
-
-
+        */
     }
 
     public void OnSubSpearCollision(SubSpear subSpear, Collision other)
     {
-
-
         if (telegraphingSpear != null)
         {
             telegraphingSpear.SetActive(false);
@@ -205,7 +231,7 @@ public class SpearNetworked : MonoBehaviour
         if (other.transform.CompareTag("Wall"))
         {
             Destroy(Instantiate(impactParticles, other.GetContact(0).point, Quaternion.identity), 5);
-            
+
 
             rb.velocity = Vector3.zero;
 

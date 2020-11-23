@@ -1152,7 +1152,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5254551859667193549}
   m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: 0.56999993, y: 0.865, z: -0.336}
+  m_LocalPosition: {x: 0.614, y: 0.23, z: -0.132}
   m_LocalScale: {x: 3, y: 3, z: 3}
   m_Children:
   - {fileID: 1832614623693610391}
@@ -1266,12 +1266,11 @@ MonoBehaviour:
   - {fileID: 3120066358655560352}
   - {fileID: 2558377991433446064}
   - {fileID: 2984322229392093640}
-  gameStats: {fileID: 0}
   spearSpeed: 60
-  spearPrefab: {fileID: 7176320511624690139, guid: ff72174f4e825ec4d8bb4273f0fb8555,
+  spearPrefab: {fileID: 6998389565875200494, guid: 8c4b791f3bba579419cad9b091ea1b24,
     type: 3}
   spearInHand: {fileID: 5254551859667193549}
-  reloadTime: 0
+  reloadTime: 0.8
   mostRecentlyThrownSpear: {fileID: 0}
   telegraphingLineRenderer: {fileID: 3276242159821011309}
   maxDistanceTelegraph: 13
