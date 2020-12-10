@@ -8,7 +8,7 @@ public class SpearNetworked : NetworkBehaviour
     public Rigidbody rb;
     private Vector3 previousPosition;
     private Quaternion previousRotation;
-    private bool hitEnemy;
+    public bool hitEnemy;
 
     [SerializeField]
     private float dropOffDistance = 50f;
@@ -55,7 +55,6 @@ public class SpearNetworked : NetworkBehaviour
     [Server]
     void Update()
     {
-
         distanceTravelled += Vector3.Distance(transform.position, previousPosition);
 
         if (rb == null)
@@ -71,7 +70,6 @@ public class SpearNetworked : NetworkBehaviour
     [Server]
     void LateUpdate()
     {
-
         previousPosition = transform.position;
         previousRotation = transform.rotation;
         if (rb != null)
@@ -86,10 +84,20 @@ public class SpearNetworked : NetworkBehaviour
         soundPlayer.PlaySound();
     }
 
-    [ServerCallback]
+    [ClientRpc]
+    void SpawnBloodParticles(Vector3 point, Transform parent)
+    {
+        GameObject go = Instantiate(impactBloodParticles, point, Quaternion.identity, parent);
+        go.transform.position = point;
+        //NetworkServer.Spawn(go);
+    }
+
+
+    public bool hitWall = false;
+
+
     private void OnCollisionEnter(Collision other)
     {
-
         if (telegraphingSpear != null)
         {
             telegraphingSpear.SetActive(false);
@@ -98,31 +106,31 @@ public class SpearNetworked : NetworkBehaviour
         {
             if (!hitEnemy)
             {
-                GameObject go = Instantiate(impactBloodParticles, other.GetContact(0).point, Quaternion.identity, other.transform);
-                NetworkServer.Spawn(go);
+                if (other.transform.GetComponent<PlayerNetworked>().isAlive)
+                {
+                    /*
+                    if (!other.transform.GetComponent<PlayerNetworked>().isLocalPlayer && !isServer)
+                    {
+
+                    }
+                    */
+                    other.transform.GetComponent<PlayerNetworked>().Die(transform, previousVelocity);
+                    SpawnBloodParticles(other.GetContact(0).point, other.transform);
+                }
+
+
 
                 //rb.angularVelocity = Vector3.zero;
                 //rb.velocity = Vector3.zero;
                 rb.constraints = RigidbodyConstraints.None;
 
 
-                transform.position = previousPosition;
-                transform.rotation = previousRotation;
+                //transform.position = previousPosition;
+                //transform.rotation = previousRotation;
 
 
-                if (playerController.mostRecentlyThrownSpear == this) //To be sure a spear doesn't unspear some other spear.
-                {
-                    playerController.mostRecentlyThrownSpear = null;
-                }
 
-            
-                other.transform.GetComponent<PlayerNetworked>().Die();
-                FixedJoint joint = other.gameObject.AddComponent<FixedJoint>();
-                joint.connectedBody = rb;
-                //Anchor stuff if necessary based on collision contacts.
 
-                rb.velocity = previousVelocity;
-                rb.mass = 1f;
 
                 PlaySound(spearHitEnemySoundPlayer);
             }
@@ -131,16 +139,51 @@ public class SpearNetworked : NetworkBehaviour
             GetComponent<Collider>().isTrigger = true;
         }
 
+        if (other.transform.CompareTag("Shield"))
+        {
+            if (hitEnemy)
+            {
+                return;
+            }
+
+            GameObject impactParticle = Instantiate(impactParticles, other.GetContact(0).point, Quaternion.identity);
+            impactParticle.transform.position = other.GetContact(0).point;
+            NetworkServer.Spawn(impactParticle);
+
+
+            rb.constraints = RigidbodyConstraints.None;
+            rb.mass = 1;
+            if (other.transform.GetComponent<Rigidbody>() == null)
+            {
+                var otherRb = other.gameObject.AddComponent<Rigidbody>();
+                //otherRb.isKinematic = true;
+            }
+            FixedJoint joint = this.gameObject.AddComponent<FixedJoint>();
+            joint.connectedBody = other.transform.GetComponent<Rigidbody>();
+
+            spearHitWallSoundPlayer.PlaySound();
+            hitEnemy = true;
+        }
+
         if (other.transform.CompareTag("Wall"))
         {
-            Destroy(Instantiate(impactParticles, other.GetContact(0).point, Quaternion.identity), 5);
-
-
-            rb.velocity = Vector3.zero;
+            if (hitWall)
+            {
+                return;
+            }
+            if (hitEnemy)
+            {
+                return;
+            }
+            GameObject impactParticle = Instantiate(impactParticles, other.GetContact(0).point, Quaternion.identity);
+            impactParticle.transform.position = other.GetContact(0).point;
+            NetworkServer.Spawn(impactParticle);
 
             rb.constraints = RigidbodyConstraints.FreezeAll;
-            transform.position = previousPosition;
-            transform.rotation = previousRotation;
+
+            rb.velocity = Vector3.zero;
+            //transform.position = previousPosition;
+            //transform.rotation = previousRotation;
 
             // Destroy(rb);
 
@@ -157,12 +200,15 @@ public class SpearNetworked : NetworkBehaviour
             }
             gameObject.layer = LayerMask.NameToLayer("Spear");
 
-            if (playerController.mostRecentlyThrownSpear == this) //To be sure a spear doesn't unspear some other spear.
+            /*
+            if (playerController.isLocalPlayer && playerController.mostRecentlyThrownSpear == this) //To be sure a spear doesn't unspear some other spear.
             {
                 playerController.mostRecentlyThrownSpear = null;
             }
+            */
             transform.DetachChildren();
             spearHitWallSoundPlayer.PlaySound();
+            hitWall = true;
         }
 
         /*

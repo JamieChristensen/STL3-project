@@ -10,6 +10,7 @@ TagManager:
   - Ground
   - ImpaledEnemy
   - Spear
+  - Shield
   layers:
   - Default
   - TransparentFX

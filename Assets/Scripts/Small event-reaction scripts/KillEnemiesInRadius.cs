@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Mirror;
 
 //More like "explode and kill enemies caught in explosion".
 public class KillEnemiesInRadius : MonoBehaviour
@@ -29,12 +30,25 @@ public class KillEnemiesInRadius : MonoBehaviour
         }
     }
 
+    [Server]
     public void KillEnemies()
     {
         Collider[] colliders = Physics.OverlapSphere(transform.position, radius, layerMask);
 
         foreach (Collider other in colliders)
         {
+            if (other.CompareTag("Player"))
+            {
+                other.GetComponent<PlayerNetworked>().DieExplo();
+            }
+            if (other.GetComponent<Rigidbody>() != null)
+            {
+                var rb = other.GetComponent<Rigidbody>();
+                rb.useGravity = true;
+                rb.isKinematic = false;
+                rb.AddExplosionForce(force, transform.position, radius, upwardsModifier, ForceMode.Impulse);
+            }
+
             if (other.transform.CompareTag("Enemy"))
             {
                 EnemyController controller = other.transform.GetComponent<EnemyController>();

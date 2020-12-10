@@ -77,6 +77,10 @@ public class PlayerNetworked : NetworkBehaviour
     [Header("Networking")]
     private NetworkManager networkManager;
 
+    public List<GameObject> animationChildren;
+
+    public Rigidbody shieldRigid;
+
     private void Awake()
     {
         if (cam == null)
@@ -86,20 +90,28 @@ public class PlayerNetworked : NetworkBehaviour
 
 
     }
+
     private void Start()
     {
         if (networkManager == null)
         {
             networkManager = FindObjectOfType<NetworkManager>();
         }
+
+        rb.velocity = Vector3.zero;
     }
 
     private void Update()
     {
-        if (!hasAuthority)
+        if (!isLocalPlayer)
         {
             return;
         }
+        if (!isAlive)
+        {
+            return;
+        }
+
 
         horizontalInput = Input.GetAxisRaw("Horizontal");
         verticalInput = Input.GetAxisRaw("Vertical");
@@ -133,7 +145,7 @@ public class PlayerNetworked : NetworkBehaviour
         {
             isRedirectingSpear = true;
             bulletTimeOn = true;
-            if (mostRecentlyThrownSpear != null)
+            if (mostRecentlyThrownSpear != null && !mostRecentlyThrownSpear.hitWall)
             {
                 mostRecentlyThrownSpear.telegraphingSpear.SetActive(true);
             }
@@ -154,7 +166,7 @@ public class PlayerNetworked : NetworkBehaviour
 
         if (bulletTimeOn)
         {
-            Time.timeScale = 0.33f;          //Half speed.
+            //Time.timeScale = 0.33f;          //Half speed.
             //Fixed delta-time is taken care of in CameraController.
         }
         else
@@ -177,7 +189,7 @@ public class PlayerNetworked : NetworkBehaviour
     [Client]
     void PlayerMovement()
     {
-        if (!hasAuthority)
+        if (!isLocalPlayer)
         {
             return;
         }
@@ -197,14 +209,29 @@ public class PlayerNetworked : NetworkBehaviour
     [ClientRpc]
     void RpcMove(Vector3 direction)
     {
+        if (direction.magnitude < 0.2f)
+        {
+            return;
+        }
         controller.Move(direction * moveSpeed * Time.fixedDeltaTime);
         controller.Move(Vector3.down * controllerGravity * Time.fixedDeltaTime);
+    }
+
+    [Command]
+    void CmdLook(Vector3 lookPos)
+    {
+        transform.LookAt(lookPos);
+        transform.rotation = Quaternion.Euler(0, transform.rotation.eulerAngles.y, transform.rotation.eulerAngles.z); //Prevents looking down.
     }
 
     [Client]
     void PlayerLookRotationAndRedirectSpear()
     {
-        if (!hasAuthority)
+        if (!isLocalPlayer)
+        {
+            return;
+        }
+        if (!isAlive)
         {
             return;
         }
@@ -216,8 +243,7 @@ public class PlayerNetworked : NetworkBehaviour
             //Debug.DrawLine(ray.origin, hit.point, Color.white);
             Vector3 lookPos = hit.point;
             mousePos = lookPos;
-            transform.LookAt(lookPos);
-            transform.rotation = Quaternion.Euler(0, transform.rotation.eulerAngles.y, transform.rotation.eulerAngles.z); //Prevents looking down.
+            CmdLook(lookPos);
 
             Vector3 pos0 = telegraphingLineRenderer.transform.position;
             RaycastHit hit2;
@@ -255,13 +281,16 @@ public class PlayerNetworked : NetworkBehaviour
                 spearRedirectSoundPlayer.PlaySound();
             }
         }
-
-
     }
 
     private void FixedUpdate()
     {
-        if (!hasAuthority)
+
+        if (!isLocalPlayer)
+        {
+            return;
+        }
+        if (!isAlive)
         {
             return;
         }
@@ -271,9 +300,25 @@ public class PlayerNetworked : NetworkBehaviour
         PlayerLookRotationAndRedirectSpear();
     }
 
+    [Server]
+    private void LateUpdate()
+    {
+        if (isServer)
+        {
+            var velocity = rb.velocity;
+            var angular = rb.angularVelocity;
+            //SetVelocities(angular, velocity);
+        }
+    }
+
+
     [Client]
     private void ThrowSpear(Vector3 target, float spearSpeed)
     {
+        if (!isAlive)
+        {
+            return;
+        }
         spearThrowSoundPlayer.PlaySound();
         spearInHand.SetActive(false);
 
@@ -285,7 +330,6 @@ public class PlayerNetworked : NetworkBehaviour
     private void CmdThrowSpear(Vector3 target, float spearSpeed)
     {
         GameObject spearObj = Instantiate(spearPrefab, spearInHand.transform.position, spearInHand.transform.rotation);
-
 
         SpearNetworked spear = spearObj.GetComponentInChildren<SpearNetworked>();
         target = new Vector3(target.x, spearInHand.transform.position.y, target.z);
@@ -299,9 +343,10 @@ public class PlayerNetworked : NetworkBehaviour
     }
 
 
-    //TODO: MAKE THIS A CLIENTRPC FROM SERVER AND MAKE SERVER CALL IT IN SPEARNETWORKED.CS
-    public void Die(Rigidbody rbToParent)
+    [ClientRpc]
+    public void DieExplo()
     {
+        rb.isKinematic = false;
         //Play some sound-effects
         //unparent all transforms/rigidbodies, free up all restrictions on them, apply a minor explosion-force centered a bit below the player.
 
@@ -312,6 +357,10 @@ public class PlayerNetworked : NetworkBehaviour
             telegraphingLineRenderer.gameObject.SetActive(false);
         }
         transform.DetachChildren();
+        foreach (GameObject go in animationChildren)
+        {
+            go.transform.parent = this.transform;
+        }
 
         if (rb == null)
         {
@@ -321,17 +370,31 @@ public class PlayerNetworked : NetworkBehaviour
         rb.constraints = RigidbodyConstraints.None;
         rb.useGravity = true;
 
+        deathSoundPlayer.PlaySound();
         StartCoroutine(OnDeath());
         //rb.AddExplosionForce(10f, transform.position, 4f, 1f, ForceMode.Impulse);
         //rbToParent.transform.SetParent(transform);
-
-        this.enabled = false;
+        isAlive = false;
+            shieldRigid.isKinematic = false;
+        shieldRigid.mass = 25;
     }
 
-public void Die()
+    public bool isAlive = true;
+    
+
+    //Note - if current test doesn't work out (death identical on both host and client, then try this with no tag, or as a clientRPC)
+    [ClientRpc]
+    public void Die(Transform original, Vector3 previousVelocity)
     {
+        rb.isKinematic = false;
         //Play some sound-effects
         //unparent all transforms/rigidbodies, free up all restrictions on them, apply a minor explosion-force centered a bit below the player.
+        FixedJoint joint = this.gameObject.AddComponent<FixedJoint>();
+        joint.connectedBody = original.transform.GetComponent<Rigidbody>();
+        //Anchor stuff if necessary based on collision contacts.
+        original.GetComponent<Rigidbody>().velocity = previousVelocity;
+        original.GetComponent<Rigidbody>().mass = 1f;
+
 
         foreach (Collider coll in collidersToActivateOnDeath)
         {
@@ -340,6 +403,10 @@ public void Die()
             telegraphingLineRenderer.gameObject.SetActive(false);
         }
         transform.DetachChildren();
+        foreach (GameObject go in animationChildren)
+        {
+            go.transform.parent = this.transform;
+        }
 
         if (rb == null)
         {
@@ -348,12 +415,17 @@ public void Die()
 
         rb.constraints = RigidbodyConstraints.None;
         rb.useGravity = true;
+        shieldRigid.isKinematic = false;
+        shieldRigid.mass = 25;
 
+        deathSoundPlayer.PlaySound();
         StartCoroutine(OnDeath());
         //rb.AddExplosionForce(10f, transform.position, 4f, 1f, ForceMode.Impulse);
 
-        this.enabled = false;
+        isAlive = false;
     }
+
+
 
     public IEnumerator OnDeath()
     {
@@ -365,8 +437,30 @@ public void Die()
         {
             isDead = true;
         }
-        deathSoundPlayer.PlaySound();
+
         yield return new WaitForSecondsRealtime(deathSoundPlayer.audioSource.clip.length - 1f);
+
+        ReloadScene();
         //SceneManager.LoadSceneAsync(SceneManager.GetActiveScene().buildIndex, LoadSceneMode.Single);
+    }
+
+    [ClientRpc]
+    void SetVelocities(Vector3 angular, Vector3 velocity)
+    {
+        rb.velocity = velocity;
+        rb.angularVelocity = angular;
+    }
+
+
+    [Command]
+    public void ReloadScene()
+    {
+        var loadSceneName = networkManager.onlineScene;
+        networkManager.ServerChangeScene(loadSceneName);
+    }
+
+    public void ReadyPlayers()
+    {
+        ClientScene.Ready(NetworkClient.connection);
     }
 }

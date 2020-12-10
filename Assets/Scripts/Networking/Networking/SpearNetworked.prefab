@@ -694,7 +694,7 @@ MonoBehaviour:
   - {fileID: 5061422151807948389}
   - {fileID: 8015503652973122938}
   - {fileID: 3662237507402496257}
-  impactParticles: {fileID: 705520177329233658, guid: ef573d3a15f51014aa025a0806fd2d03,
+  impactParticles: {fileID: 705520177329233658, guid: d10427fc24905bc4094c40ca4a4669be,
     type: 3}
   impactBloodParticles: {fileID: 705520177329233658, guid: b1caf5215e11d834ea2576cc416f9833,
     type: 3}
@@ -728,8 +728,8 @@ BoxCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Size: {x: 0.042911768, y: 0.08536806, z: 0.04604292}
-  m_Center: {x: 0, y: 0.3297192, z: 0}
+  m_Size: {x: 0.042911768, y: 0.08801286, z: 0.04604292}
+  m_Center: {x: 0, y: 0.670355, z: 0}
 --- !u!114 &7711915647019149559
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -761,9 +761,9 @@ MonoBehaviour:
   syncMode: 0
   syncInterval: 0
   clientAuthority: 0
-  localPositionSensitivity: 0.01
-  localRotationSensitivity: 0.01
-  localScaleSensitivity: 0.01
+  localPositionSensitivity: 0
+  localRotationSensitivity: 0
+  localScaleSensitivity: 0
 --- !u!1 &6998389565875218976
 GameObject:
   m_ObjectHideFlags: 0
