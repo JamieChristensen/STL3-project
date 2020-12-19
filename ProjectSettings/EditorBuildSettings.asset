@@ -11,7 +11,11 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/Scenes/Game Scenes/End scene.unity
     guid: 29df65b04d3aeed40a4c4c8509ef0ff5
-  - enabled: 1
-    path: Assets/Scenes/Networking testing & learning/Player movement.unity
+  - enabled: 0
+    path: Assets/Scenes/Networking testing & learning/Network prototype 1 - Particle
+      fix.unity
     guid: 2f882ed7e4bb0f84b87b19b4e21c0e74
+  - enabled: 1
+    path: Assets/Scenes/Networking testing & learning/Network prototype cont..unity
+    guid: 70957f1b6ede4764d87e1a5bc3ac3112
   m_configObjects: {}

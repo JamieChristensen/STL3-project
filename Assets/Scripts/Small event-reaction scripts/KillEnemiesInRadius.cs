@@ -20,6 +20,7 @@ public class KillEnemiesInRadius : MonoBehaviour
     [SerializeField]
     private bool drawImpactAreaGizmo;
 
+    private float timer = 0.5f;
 
     private void OnDrawGizmos()
     {
@@ -47,23 +48,28 @@ public class KillEnemiesInRadius : MonoBehaviour
                 rb.useGravity = true;
                 rb.isKinematic = false;
                 rb.AddExplosionForce(force, transform.position, radius, upwardsModifier, ForceMode.Impulse);
-            }
-
-            if (other.transform.CompareTag("Enemy"))
-            {
-                EnemyController controller = other.transform.GetComponent<EnemyController>();
-                controller.isDead = true;
-                controller.navMeshAgent.isStopped = true;
-                controller.TurnOnRagdoll();
-
-                other.transform.tag = "DeadEnemy";
-                foreach (Collider coll in controller.ragdollParts)
+                if (other.transform.root.GetComponent<ThingSpawner>() != null)
                 {
-                    coll.GetComponent<Rigidbody>().AddExplosionForce(force, transform.position, radius, upwardsModifier, ForceMode.Impulse);
+                    var rb2 = other.transform.root.GetComponent<Rigidbody>();
+                    rb2.velocity = rb2.velocity.normalized * 5f;
                 }
-
             }
+        }
+    }
 
+    public void Update()
+    {
+        timer -= Time.deltaTime;
+        if (timer < 0)
+        {
+            return;
+        }
+
+        if (GetComponent<Rigidbody>().velocity.magnitude > 10f)
+        {
+            var rb = GetComponent<Rigidbody>();
+
+            rb.velocity = rb.velocity.normalized * 5f;
         }
     }
 }

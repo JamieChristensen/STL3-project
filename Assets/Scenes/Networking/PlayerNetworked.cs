@@ -81,14 +81,14 @@ public class PlayerNetworked : NetworkBehaviour
 
     public Rigidbody shieldRigid;
 
+    public GameObject pusher;
+
     private void Awake()
     {
         if (cam == null)
         {
             cam = GameObject.FindObjectOfType<Camera>();
         }
-
-
     }
 
     private void Start()
@@ -118,6 +118,14 @@ public class PlayerNetworked : NetworkBehaviour
         shootInput = Input.GetAxisRaw("Fire1");
         bool bulletTimeOn = Input.GetKey(bulletTimeKey);
         bool pressedRedirectSpear = Input.GetKeyDown(redirectSpearKey);
+
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            GameObject pushObj = Instantiate(pusher, transform.position, Quaternion.identity);
+
+            NetworkServer.Spawn(pushObj);
+        }
+
 
         if (shootInput > 0.2f && readyToShoot)
         {
@@ -202,12 +210,11 @@ public class PlayerNetworked : NetworkBehaviour
     [Command]
     void CmdMove(Vector3 direction)
     {
-
         RpcMove(direction);
     }
 
     [ClientRpc]
-    void RpcMove(Vector3 direction)
+    public void RpcMove(Vector3 direction)
     {
         if (direction.magnitude < 0.2f)
         {
@@ -375,12 +382,12 @@ public class PlayerNetworked : NetworkBehaviour
         //rb.AddExplosionForce(10f, transform.position, 4f, 1f, ForceMode.Impulse);
         //rbToParent.transform.SetParent(transform);
         isAlive = false;
-            shieldRigid.isKinematic = false;
+        shieldRigid.isKinematic = false;
         shieldRigid.mass = 25;
     }
 
     public bool isAlive = true;
-    
+
 
     //Note - if current test doesn't work out (death identical on both host and client, then try this with no tag, or as a clientRPC)
     [ClientRpc]

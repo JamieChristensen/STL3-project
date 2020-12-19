@@ -29,9 +29,9 @@ TagManager:
   - ImpaledEnemy
   - EnemyWall
   - 
-  - 
-  - 
-  - 
+  - Pushcollider
+  - Spearshooter
+  - Spawner
   - 
   - 
   - 

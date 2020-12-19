@@ -55,6 +55,16 @@ public class SpearNetworked : NetworkBehaviour
     [Server]
     void Update()
     {
+        if (startCounter)
+        {
+            counter -= Time.deltaTime;
+        }
+        if (counter < 0)
+        {
+            NetworkServer.Destroy(gameObject);
+            Destroy(gameObject);
+        }
+
         distanceTravelled += Vector3.Distance(transform.position, previousPosition);
 
         if (rb == null)
@@ -70,6 +80,7 @@ public class SpearNetworked : NetworkBehaviour
     [Server]
     void LateUpdate()
     {
+
         previousPosition = transform.position;
         previousRotation = transform.rotation;
         if (rb != null)
@@ -94,8 +105,8 @@ public class SpearNetworked : NetworkBehaviour
 
 
     public bool hitWall = false;
-
-
+    bool startCounter = false;
+    float counter = 2f;
     private void OnCollisionEnter(Collision other)
     {
         if (telegraphingSpear != null)
@@ -128,15 +139,13 @@ public class SpearNetworked : NetworkBehaviour
                 //transform.position = previousPosition;
                 //transform.rotation = previousRotation;
 
-
-
-
-
                 PlaySound(spearHitEnemySoundPlayer);
             }
             hitEnemy = true;
 
             GetComponent<Collider>().isTrigger = true;
+
+            startCounter = true;
         }
 
         if (other.transform.CompareTag("Shield"))
@@ -144,6 +153,11 @@ public class SpearNetworked : NetworkBehaviour
             if (hitEnemy)
             {
                 return;
+            }
+
+            foreach (var trail in GetComponentsInChildren<TrailRenderer>())
+            {
+                trail.gameObject.SetActive(false);
             }
 
             GameObject impactParticle = Instantiate(impactParticles, other.GetContact(0).point, Quaternion.identity);
@@ -163,6 +177,10 @@ public class SpearNetworked : NetworkBehaviour
 
             spearHitWallSoundPlayer.PlaySound();
             hitEnemy = true;
+            GetComponent<Collider>().enabled = false;
+
+            startCounter = true;
+
         }
 
         if (other.transform.CompareTag("Wall"))
@@ -206,9 +224,11 @@ public class SpearNetworked : NetworkBehaviour
                 playerController.mostRecentlyThrownSpear = null;
             }
             */
-            transform.DetachChildren();
+
             spearHitWallSoundPlayer.PlaySound();
             hitWall = true;
+
+            startCounter = true;
         }
 
         /*
@@ -245,6 +265,7 @@ public class SpearNetworked : NetworkBehaviour
             }
         }
         */
+
     }
 
     public void OnSubSpearCollision(SubSpear subSpear, Collision other)
